@@ -15,7 +15,8 @@ import sys
 import time
 
 cmdDisarm = lambda file: [
-    "pdfid",
+    "python3",
+    "pdfid.py",
     "-d",
     "-n",
     str(file),
@@ -113,17 +114,19 @@ def main(pargs):
             except:
                 pass  # Handle This TODO
 
+            print(str(file.name))
+
             if pargs.disinfect:
                 consoleOut = re.sub(r"\n^Page\s\D*", "", consoleOut, flags=re.M)
 
             print("--------------------------------")
-            print(consoleOut)
+            print(f"\n{str(consoleOut)}\n")
             log.write(f"\n{str(consoleOut)}\n")
 
             # print(cmd)
             # log.write(f"\n{str(cmd)}\n")
 
-            if "PDF Header" or "Processing pages" not in consoleOut:
+            if "PDF Header" or "Processing pages" not in str(consoleOut):
                 shutil.move(file, dirPath.joinpath(f"NOT_PROCESSED/{file.name}"))
             else:
                 shutil.move(file, dirPath.joinpath(f"BACKUP/{file.name}"))
