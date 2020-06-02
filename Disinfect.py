@@ -15,7 +15,7 @@ import sys
 import time
 
 cmdDisarm = lambda file: [
-    "python3",
+    "python",  # or python3
     "pdfid.py",
     "-d",
     "-n",
@@ -23,7 +23,7 @@ cmdDisarm = lambda file: [
 ]
 
 cmdDisinfect = lambda file: [
-    "gs",
+    "gs.exe",  # or gs
     "-dBATCH",
     "-dNOPAUSE",
     "-sDEVICE=pdfwrite",
@@ -48,6 +48,13 @@ getFileList = lambda ext, dirPath: [
     if x.is_file() and x.suffix == ".pdf" and ext not in x.name
 ]
 
+bytesToMB = lambda bytes: round(bytes / float(1 << 20), 3)
+
+
+def printLog(data, logRef):
+    print(data)
+    logRef.write(data)
+
 
 def ntdExit():
     print("Nothing to do.")
@@ -67,7 +74,9 @@ def parseArgs():
         else:
             raise argparse.ArgumentTypeError("Invalid Directory path")
 
-    parser = argparse.ArgumentParser(description="Disarm/Disinfect PDF files.")
+    parser = argparse.ArgumentParser(
+        description="Disarm/Disinfect PDF files using PDFiD and GhostScript."
+    )
 
     parser.add_argument("dir", metavar="DirPath", help="Directory path", type=dirPath)
     parser.add_argument(
@@ -92,8 +101,14 @@ def main(pargs):
 
     if pargs.disarm:
         fileList = partFileList(".disarmed")
+        logname = "log.disarmed"
+        validCheck = "PDF Header:"
+
     elif pargs.disinfect:
         fileList = partFileList(".disinfected")
+        logname = "log.disinfected"
+        validCheck = "Processing pages "
+
     else:
         ntdExit()
 
@@ -105,31 +120,46 @@ def main(pargs):
     targetDirs("NOT_PROCESSED")
     targetDirs("BACKUP")
 
-    with open(dirPath.joinpath("log"), "w") as log:
-        for file in fileList:
+    oldSize = 0
+    newSize = 0
+
+    with open(dirPath.joinpath(logname), "w") as log:
+        for i, file in enumerate(fileList):
             cmd = cmdDisarm(file) if pargs.disarm else cmdDisinfect(file)
+
+            oldSize = bytesToMB(file.stat().st_size)
+            printLogP = functools.partial(printLog, logRef=log)
+
+            printLogP("--------------------------------")
+            printLogP(f"\n{i}/{len(fileList)}")
+            printLogP(f"\n{str(file.name)}\n")
 
             try:
                 consoleOut = (subprocess.check_output(cmd)).decode("utf-8")
             except:
-                pass  # Handle This TODO
-
-            print(str(file.name))
+                printLogP(f"can't run {cmd[0]}")
+                continue  # TODO: Handle This
 
             if pargs.disinfect:
                 consoleOut = re.sub(r"\n^Page\s\D*", "", consoleOut, flags=re.M)
+                newSize = bytesToMB(
+                    os.stat(
+                        str(file).replace(
+                            str(file.name), f"{str(file.stem)}.disinfected.pdf"
+                        )
+                    ).st_size
+                )
+                printLogP(f"\nOld size: {oldSize} MB\nNew Size :{newSize} MB\n")
 
-            print("--------------------------------")
-            print(f"\n{str(consoleOut)}\n")
-            log.write(f"\n{str(consoleOut)}\n")
+            printLogP("--------------------------------")
+            printLogP(f"\n{str(consoleOut)}\n")
 
-            # print(cmd)
-            # log.write(f"\n{str(cmd)}\n")
-
-            if "PDF Header" or "Processing pages" not in str(consoleOut):
+            if validCheck not in str(consoleOut):
                 shutil.move(file, dirPath.joinpath(f"NOT_PROCESSED/{file.name}"))
+                printLogP(f"{file.name} moved to ./NOT_PROCESSED/ directory")
             else:
                 shutil.move(file, dirPath.joinpath(f"BACKUP/{file.name}"))
+                printLogP(f"{file.name} moved to ./BACKUP/ directory")
 
             # time.sleep(10)
             input("\nPress Enter to continue...")
