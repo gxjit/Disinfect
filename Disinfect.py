@@ -50,6 +50,8 @@ getFileList = lambda ext, dirPath: [
 
 bytesToMB = lambda bytes: round(bytes / float(1 << 20), 3)
 
+getTimeStr = lambda: time.strftime("%d-%m-%y_%H-%M-%S")
+
 
 def printLog(data, logRef):
     print(data)
@@ -120,38 +122,35 @@ def main(pargs):
     targetDirs("NOT_PROCESSED")
     targetDirs("BACKUP")
 
-    oldSize = 0
-    newSize = 0
+    oldSize = totalOldSize = 0
+    newSize = totalNewSize = 0
 
-    with open(dirPath.joinpath(logname), "w") as log:
+    with open(dirPath.joinpath(f"{logname}_{getTimeStr()}"), "w") as log:
         for i, file in enumerate(fileList):
             cmd = cmdDisarm(file) if pargs.disarm else cmdDisinfect(file)
 
-            oldSize = bytesToMB(file.stat().st_size)
+            oldSize = file.stat().st_size
+            totalOldSize += oldSize
             printLogP = functools.partial(printLog, logRef=log)
 
-            printLogP("--------------------------------")
-            printLogP(f"\n{i}/{len(fileList)}")
+            printLogP("\n================================")
+            printLogP(f"\n{i + 1}/{len(fileList)} - {getTimeStr()}")
             printLogP(f"\n{str(file.name)}\n")
 
             try:
                 consoleOut = (subprocess.check_output(cmd)).decode("utf-8")
             except:
-                printLogP(f"can't run {cmd[0]}")
+                printLogP(
+                    f"can't run {cmd[0]}"
+                )  # needs fixing doesnt move file to not processed
                 continue  # TODO: Handle This
 
             if pargs.disinfect:
                 consoleOut = re.sub(r"\n^Page\s\D*", "", consoleOut, flags=re.M)
-                newSize = bytesToMB(
-                    os.stat(
-                        str(file).replace(
-                            str(file.name), f"{str(file.stem)}.disinfected.pdf"
-                        )
-                    ).st_size
-                )
-                printLogP(f"\nOld size: {oldSize} MB\nNew Size :{newSize} MB\n")
+                newSize = os.stat(cmd[-2].replace("-sOUTPUTFILE=", "")).st_size
+                totalNewSize += newSize
 
-            printLogP("--------------------------------")
+            printLogP("\n--------------------------------")
             printLogP(f"\n{str(consoleOut)}\n")
 
             if validCheck not in str(consoleOut):
@@ -159,10 +158,25 @@ def main(pargs):
                 printLogP(f"{file.name} moved to ./NOT_PROCESSED/ directory")
             else:
                 shutil.move(file, dirPath.joinpath(f"BACKUP/{file.name}"))
-                printLogP(f"{file.name} moved to ./BACKUP/ directory")
+                printLogP(f"Source file: {file.name} moved to ./BACKUP/ directory")
+
+            if pargs.disinfect:
+                if newSize > (oldSize * 2):
+                    printLogP(
+                        "\nResulting file is significantly larger than the source file."
+                    )
+
+                printLogP(
+                    f"\nOld size: {bytesToMB(oldSize)} MB\nNew Size :{bytesToMB(newSize)} MB\n"
+                )
 
             # time.sleep(10)
             input("\nPress Enter to continue...")
+
+        if pargs.disinfect:
+            printLogP(
+                f"\nTotal Old size: {bytesToMB(oldSize)} MB\nTotal New Size :{bytesToMB(newSize)} MB\n"
+            )
 
 
 main(parseArgs())
