@@ -79,12 +79,14 @@ def parseArgs():
     parser = argparse.ArgumentParser(
         description="Disarm/Disinfect PDF files using PDFiD and GhostScript."
     )
-
-    parser.add_argument("dir", metavar="DirPath", help="Directory path", type=dirPath)
     parser.add_argument(
+        "-d", "--dir", required=True, help="Directory path", type=dirPath
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "-a", "--disarm", action="store_true", help="Disarm PDF file using pdfid -d"
     )
-    parser.add_argument(
+    group.add_argument(
         "-i",
         "--disinfect",
         action="store_true",
