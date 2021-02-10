@@ -16,7 +16,7 @@ import time
 
 cmdDisarm = lambda file: [
     "python",  # or python3
-    "pdfid.py",
+    f"{os.path.dirname(__file__)}{os.path.sep}pdfid{os.path.sep}pdfid.py",
     "-d",
     "-n",
     str(file),
