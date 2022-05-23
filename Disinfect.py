@@ -14,9 +14,12 @@ import subprocess
 import sys
 import time
 
+pythonCmd = "pypy"  # or "python"
+
 cmdDisarm = lambda file: [
-    "python",  # or python3
-    f"{os.path.dirname(__file__)}{os.path.sep}pdfid{os.path.sep}pdfid.py",
+    pythonCmd,  # or python3
+    pathlib.Path(__file__).parents[0].resolve().joinpath("./pdfid/pdfid.py"),
+    # f"{os.path.dirname(__file__)}{os.path.sep}pdfid{os.path.sep}pdfid.py",
     "-d",
     "-n",
     str(file),
@@ -68,6 +71,16 @@ def makeTargetDirs(name, dirPath):
         os.mkdir(dirPath.joinpath(name))
 
 
+def waitN(n):
+    print("\n")
+    for i in reversed(range(0, n)):
+        print(
+            f"Waiting for {str(i).zfill(3)} seconds.", end="\r", flush=True
+        )  # padding for clearing digits left from multi digit coundown
+        time.sleep(1)
+    print("\r")
+
+
 def parseArgs():
     def dirPath(pth):
         pthObj = pathlib.Path(pth)
@@ -91,6 +104,15 @@ def parseArgs():
         "--disinfect",
         action="store_true",
         help="Disinfect PDF file by printing and downsampling using GhostScript",
+    )
+    parser.add_argument(
+        "-w",
+        "--wait",
+        nargs="?",
+        default=None,
+        const=4,
+        type=int,
+        help="Wait time in seconds between each iteration, default is 4",
     )
     pargs = parser.parse_args()
 
@@ -173,7 +195,9 @@ def main(pargs):
                 )
 
             # time.sleep(10)
-            input("\nPress Enter to continue...")
+            if pargs.wait:
+                waitN(int(pargs.wait))
+            # input("\nPress Enter to continue...")
 
         if pargs.disinfect:
             printLogP(
