@@ -14,12 +14,10 @@ import subprocess
 import sys
 import time
 
-pythonCmd = "pypy"  # or "python"
 
 cmdDisarm = lambda file: [
-    pythonCmd,  # or python3
+    sys.executable,
     pathlib.Path(__file__).parents[0].resolve().joinpath("./pdfid/pdfid.py"),
-    # f"{os.path.dirname(__file__)}{os.path.sep}pdfid{os.path.sep}pdfid.py",
     "-d",
     "-n",
     str(file),
